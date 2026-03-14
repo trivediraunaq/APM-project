@@ -190,40 +190,47 @@ else:
         fig.update_xaxes(range=[0, 1024], visible=False, fixedrange=True)
         fig.update_yaxes(range=[1024, 0], visible=False, fixedrange=True, scaleanchor="x", scaleratio=1) 
         
-        # --- STABILIZED LAYOUT ---
-        fig.update_layout(
-            # Remove fixed width/height here to allow the container to dictate size
-            autosize=True, 
-            margin=dict(l=0, r=0, t=0, b=0),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            ),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-        )
+        # --- UPDATED STABLE LAYOUT ---
+    fig.update_layout(
+        autosize=True,
+        width=1000,   # Force a large base width
+        height=1000,  # Force a large base height to keep it square
+        margin=dict(l=0, r=0, t=50, b=0), # Give some top room for the legend
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    )
 
-        # Use the full container width and tell Plotly to be responsive
-        st.plotly_chart(
-            fig, 
-            use_container_width=True, 
-            config={'responsive': True, 'displayModeBar': True}
-        )
+    # We remove the 'with col_map' and just use the full width of the app
+    # This prevents the "Match Intelligence" column from squeezing the map
+    st.plotly_chart(
+        fig, 
+        use_container_width=True, # This will make it responsive to the screen
+        config={'responsive': True}
+    )
 
-    with col_stats:
-        st.subheader("Match Intelligence")
-        if not df_display.empty:
-            st.metric("Events Shown", len(df_display))
-            st.metric("Humans", len(df_display[df_display['is_bot'] == False]['user_id'].unique()))
-            st.metric("Bots", len(df_display[df_display['is_bot'] == True]['user_id'].unique()))
-            
-            # Quick Insight List
-            st.markdown("---")
-            st.markdown("**Active Events**")
-            counts = df_display['event'].value_counts()
-            for ev, count in counts.items():
-                if ev != 'Position': # Position data is too noisy for a list
-                    st.write(f"**{ev}:** {count}")
+    # Move Match Intelligence BELOW the map instead of beside it
+    st.markdown("---")
+    st.subheader("Match Intelligence")
+    st_col1, st_col2, st_col3 = st.columns(3)
+    with st_col1:
+        st.metric("Events Shown", len(df_display))
+    with st_col2:
+        st.metric("Humans", len(df_display[df_display['is_bot'] == False]['user_id'].unique()))
+    with st_col3:
+        st.metric("Bots", len(df_display[df_display['is_bot'] == True]['user_id'].unique()))
+
+               
+    # Quick Insight List
+    st.markdown("---")
+    st.markdown("**Active Events**")
+    counts = df_display['event'].value_counts()
+    for ev, count in counts.items():
+        if ev != 'Position': # Position data is too noisy for a list
+            st.write(f"**{ev}:** {count}")
