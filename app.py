@@ -164,6 +164,8 @@ else:
                 opacity=0.35, showscale=False, name="Heatmap"
             ))
 
+
+    if not df_display.empty and 'user_id' in df_display.columns:
         # 3. Plot Paths & Events
         for user in df_display['user_id'].unique():
             user_data = df_display[df_display['user_id'] == user]
@@ -174,6 +176,16 @@ else:
                 line=dict(width=2, dash='dot' if is_bot else 'solid'),
                 name=f"{'Bot' if is_bot else 'Player'} {user[:5]}"
             ))
+    else:
+        # If no filters are selected, show a friendly message instead of a crash
+        st.info("Please select a Match ID from the sidebar to visualize player journeys.")
+        # Create an empty figure so the app doesn't look broken
+        fig = go.Figure()
+        fig.update_layout(
+            xaxis={'visible': False}, yaxis={'visible': False},
+            annotations=[dict(text="No Match Selected", showarrow=False, font_size=20)]
+        )
+
 
         # Event Markers
         event_markers = {'Kill': 'green', 'Killed': 'red', 'Loot': 'gold', 'KilledByStorm': 'purple'}
