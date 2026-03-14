@@ -139,10 +139,24 @@ else:
 
     with col_map:
         # --- VISUALIZATION ---
-        # --- FINAL STABLE VISUALIZATION ---
+        # --- STABILIZED VIEWPORT ---
+        
+        # 1. Inject CSS to force the chart container to a specific height
+        # This prevents the "shrinking" effect during browser zooming
+        st.markdown("""
+            <style>
+            .stPlotlyChart {
+                height: 800px !important;
+                width: 800px !important;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
         fig = go.Figure()
 
-        # 1. Add Minimap Background
+        # Add Minimap Background
         if os.path.exists(conf['img']):
             img = Image.open(conf['img'])
             fig.add_layout_image(
@@ -157,56 +171,22 @@ else:
                 )
             )
 
-        # 2. Add Heatmap
-        if show_heatmap and not df_filtered_days.empty:
-            hx, hy = world_to_pixel(df_filtered_days['x'], df_filtered_days['z'], conf)
-            fig.add_trace(go.Histogram2dContour(
-                x=hx, y=hy, colorscale='Hot', ncontours=20, 
-                opacity=0.35, showscale=False, name="Heatmap"
-            ))
+        # ... [Keep your Heatmap, Paths, and Events code here] ...
 
-        # 3. Plot Player Paths
-        for user in df_display['user_id'].unique():
-            user_data = df_display[df_display['user_id'] == user]
-            is_bot = user_data['is_bot'].iloc[0]
-            fig.add_trace(go.Scatter(
-                x=user_data['px_x'], y=user_data['px_y'],
-                mode='lines',
-                line=dict(width=3, dash='dot' if is_bot else 'solid'), # Thicker lines for visibility
-                name=f"{'Bot' if is_bot else 'Player'} {user[:5]}"
-            ))
-
-        # 4. Plot Events
-        event_markers = {'Kill': 'green', 'Killed': 'red', 'Loot': 'gold', 'KilledByStorm': 'purple'}
-        for ev, color in event_markers.items():
-            ev_df = df_display[df_display['event'] == ev]
-            if not ev_df.empty:
-                fig.add_trace(go.Scatter(
-                    x=ev_df['px_x'], y=ev_df['px_y'],
-                    mode='markers', marker=dict(color=color, size=12, symbol='x'),
-                    name=ev
-                ))
-
-        # --- THE CRITICAL FIX: AXES & LAYOUT ---
+        # LOCK THE COORDINATES
         fig.update_xaxes(range=[0, 1024], visible=False, fixedrange=True)
         fig.update_yaxes(range=[1024, 0], visible=False, fixedrange=True, scaleanchor="x", scaleratio=1)
 
         fig.update_layout(
+            # We set these to fixed pixels to match the CSS
+            width=800,
+            height=800,
             margin=dict(l=0, r=0, t=30, b=0),
-            autosize=True, # Allow Plotly to be flexible
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
+            autosize=False # CRITICAL: Tells Plotly NOT to listen to the browser resize
         )
 
-        # FORCING THE HEIGHT HERE IS THE KEY
-        # This prevents the "shrinking" because the container height is now strictly enforced
-        st.plotly_chart(
-            fig, 
-            use_container_width=True, 
-            theme=None, # Prevents Streamlit's theme from overriding colors
-            on_select="ignore" # Improves performance
-        )
-        
-        # Optional: Add a CSS hack to ensure the height stays consistent
-        st.markdown('<style>iframe { min-height: 800px; }</style>', unsafe_allow_html=True)
+        # Render with use_container_width=False to prevent Streamlit interference
+        st.plotly_chart(fig, use_container_width=False, config={'staticPlot': False, 'responsive': False})
