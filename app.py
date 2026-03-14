@@ -91,37 +91,41 @@ else:
     if not show_bots:
         df_match = df_match[df_match['is_bot'] == False]
 
-    # --- THE TIMELINE SLIDER (SAFE VERSION) ---
+    # --- THE TIMELINE SLIDER (BULLETPROOF VERSION) ---
     st.sidebar.markdown("---")
     st.sidebar.subheader("Match Playback")
 
-    # 1. Check if the dataframe is empty first to prevent the 'int()' error
     if not df_match.empty:
-        # Drop any rows where 'ts' might be missing
+        # 1. Force 'ts' to be numeric, turning errors into 'NaN'
+        df_match['ts'] = pd.to_numeric(df_match['ts'], errors='coerce')
+        
+        # 2. Drop rows where 'ts' is NaN
         df_match = df_match.dropna(subset=['ts'])
         
-        # Use min/max with a fallback value
-        min_ts = int(df_match['ts'].min()) if not df_match['ts'].empty else 0
-        max_ts = int(df_match['ts'].max()) if not df_match['ts'].empty else 100
-        
-        # Ensure max is actually greater than min
-        if max_ts > min_ts:
-            time_range = st.sidebar.slider(
-                "Current Match Time (ms)", 
-                min_value=min_ts, 
-                max_value=max_ts, 
-                value=max_ts, 
-                step=100
-            )
-        else:
-            # Fallback if the match is only 1 frame long
-            time_range = max_ts
-            st.sidebar.info("Single-event match detected.")
+        if not df_match.empty:
+            # 3. Use a safe min/max calculation
+            min_ts = int(df_match['ts'].min())
+            max_ts = int(df_match['ts'].max())
             
-        # Apply Timeline Filter to create the final display set
-        df_display = df_match[df_match['ts'] <= time_range].copy()
+            if max_ts > min_ts:
+                time_range = st.sidebar.slider(
+                    "Current Match Time (ms)", 
+                    min_value=min_ts, 
+                    max_value=max_ts, 
+                    value=max_ts, 
+                    step=100
+                )
+            else:
+                time_range = max_ts
+                st.sidebar.info("Single-event match.")
+            
+            # Apply filter
+            df_display = df_match[df_match['ts'] <= time_range].copy()
+        else:
+            st.sidebar.warning("Selected match has no valid timestamps.")
+            df_display = pd.DataFrame()
     else:
-        st.sidebar.warning("No data found for these filters. Try enabling 'Show Bots'.")
+        st.sidebar.warning("No data for these filters.")
         df_display = pd.DataFrame()
 
     # Apply Coordinates
