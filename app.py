@@ -91,24 +91,38 @@ else:
     if not show_bots:
         df_match = df_match[df_match['is_bot'] == False]
 
-    # --- THE TIMELINE SLIDER ---
+    # --- THE TIMELINE SLIDER (SAFE VERSION) ---
     st.sidebar.markdown("---")
     st.sidebar.subheader("Match Playback")
+
+    # 1. Check if the dataframe is empty first to prevent the 'int()' error
     if not df_match.empty:
-        min_ts = int(df_match['ts'].min())
-        max_ts = int(df_match['ts'].max())
+        # Drop any rows where 'ts' might be missing
+        df_match = df_match.dropna(subset=['ts'])
         
-        time_range = st.sidebar.slider(
-            "Current Match Time (ms)", 
-            min_value=min_ts, 
-            max_value=max_ts, 
-            value=max_ts, 
-            step=100
-        )
-        # Apply Timeline Filter
+        # Use min/max with a fallback value
+        min_ts = int(df_match['ts'].min()) if not df_match['ts'].empty else 0
+        max_ts = int(df_match['ts'].max()) if not df_match['ts'].empty else 100
+        
+        # Ensure max is actually greater than min
+        if max_ts > min_ts:
+            time_range = st.sidebar.slider(
+                "Current Match Time (ms)", 
+                min_value=min_ts, 
+                max_value=max_ts, 
+                value=max_ts, 
+                step=100
+            )
+        else:
+            # Fallback if the match is only 1 frame long
+            time_range = max_ts
+            st.sidebar.info("Single-event match detected.")
+            
+        # Apply Timeline Filter to create the final display set
         df_display = df_match[df_match['ts'] <= time_range].copy()
     else:
-        df_display = df_match
+        st.sidebar.warning("No data found for these filters. Try enabling 'Show Bots'.")
+        df_display = pd.DataFrame()
 
     # Apply Coordinates
     conf = MAP_CONFIG[selected_map]
