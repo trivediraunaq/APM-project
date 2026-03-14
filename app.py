@@ -133,53 +133,85 @@ else:
     if not df_display.empty:
         df_display['px_x'], df_display['px_y'] = world_to_pixel(df_display['x'], df_display['z'], conf)
 
-    # --- VISUALIZATION ---
-    fig = go.Figure()
+    # --- UI LAYOUT IMPROVEMENTS ---
+    # Create two columns: one for the map (Large) and one for stats (Small)
+    col_map, col_stats = st.columns([3, 1])
 
-    # 1. Add Minimap Background
-    if os.path.exists(conf['img']):
-        img = Image.open(conf['img'])
-        fig.add_layout_image(
-            dict(source=img, x=0, y=0, sizex=1024, sizey=1024, 
-                 xref="x", yref="y", sizing="stretch", opacity=1, layer="below")
-        )
+    with col_map:
+        # --- VISUALIZATION ---
+        fig = go.Figure()
 
-    # 2. Add Heatmap (Optional)
-    if show_heatmap and not df_filtered_days.empty:
-        # Calculate global coordinates for the heatmap
-        hx, hy = world_to_pixel(df_filtered_days['x'], df_filtered_days['z'], conf)
-        fig.add_trace(go.Histogram2dContour(
-            x=hx, y=hy, colorscale='Hot', ncontours=20, 
-            opacity=0.35, showscale=False, name="Heatmap"
-        ))
+        # 1. Add Minimap Background
+        if os.path.exists(conf['img']):
+            img = Image.open(conf['img'])
+            fig.add_layout_image(
+                dict(
+                    source=img,
+                    x=0, y=0, 
+                    sizex=1024, sizey=1024, 
+                    xref="x", yref="y",
+                    sizing="stretch", 
+                    opacity=1, 
+                    layer="below"
+                )
+            )
 
-    # 3. Plot Player Paths
-    for user in df_display['user_id'].unique():
-        user_data = df_display[df_display['user_id'] == user]
-        is_bot = user_data['is_bot'].iloc[0]
-        fig.add_trace(go.Scatter(
-            x=user_data['px_x'], y=user_data['px_y'],
-            mode='lines',
-            line=dict(width=2, dash='dot' if is_bot else 'solid'),
-            name=f"{'Bot' if is_bot else 'Player'} {user[:5]}"
-        ))
-
-    # 4. Plot Events
-    event_markers = {
-        'Kill': 'green', 'Killed': 'red', 
-        'Loot': 'gold', 'KilledByStorm': 'purple'
-    }
-    for ev, color in event_markers.items():
-        ev_df = df_display[df_display['event'] == ev]
-        if not ev_df.empty:
-            fig.add_trace(go.Scatter(
-                x=ev_df['px_x'], y=ev_df['px_y'],
-                mode='markers', marker=dict(color=color, size=10, symbol='x'),
-                name=ev
+        # 2. Add Heatmap
+        if show_heatmap and not df_filtered_days.empty:
+            hx, hy = world_to_pixel(df_filtered_days['x'], df_filtered_days['z'], conf)
+            fig.add_trace(go.Histogram2dContour(
+                x=hx, y=hy, colorscale='Hot', ncontours=20, 
+                opacity=0.35, showscale=False, name="Heatmap"
             ))
 
-    fig.update_xaxes(range=[0, 1024], visible=False)
-    fig.update_yaxes(range=[1024, 0], visible=False) 
-    fig.update_layout(width=900, height=900, margin=dict(l=0, r=0, t=0, b=0))
+        # 3. Plot Paths & Events
+        for user in df_display['user_id'].unique():
+            user_data = df_display[df_display['user_id'] == user]
+            is_bot = user_data['is_bot'].iloc[0]
+            fig.add_trace(go.Scatter(
+                x=user_data['px_x'], y=user_data['px_y'],
+                mode='lines',
+                line=dict(width=2, dash='dot' if is_bot else 'solid'),
+                name=f"{'Bot' if is_bot else 'Player'} {user[:5]}"
+            ))
 
-    st.plotly_chart(fig, use_container_width=True)
+        # Event Markers
+        event_markers = {'Kill': 'green', 'Killed': 'red', 'Loot': 'gold', 'KilledByStorm': 'purple'}
+        for ev, color in event_markers.items():
+            ev_df = df_display[df_display['event'] == ev]
+            if not ev_df.empty:
+                fig.add_trace(go.Scatter(
+                    x=ev_df['px_x'], y=ev_df['px_y'],
+                    mode='markers', marker=dict(color=color, size=12, symbol='x'),
+                    name=ev
+                ))
+
+        # --- FIX STRETCHING & SQUISHING ---
+        fig.update_xaxes(range=[0, 1024], visible=False, fixedrange=True)
+        fig.update_yaxes(range=[1024, 0], visible=False, fixedrange=True, scaleanchor="x", scaleratio=1) 
+        
+        fig.update_layout(
+            width=800, # Fixed width
+            height=800, # Fixed height to match width (1:1 aspect ratio)
+            margin=dict(l=10, r=10, t=10, b=10), # Tight margins
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_stats:
+        st.subheader("Match Intelligence")
+        if not df_display.empty:
+            st.metric("Events Shown", len(df_display))
+            st.metric("Humans", len(df_display[df_display['is_bot'] == False]['user_id'].unique()))
+            st.metric("Bots", len(df_display[df_display['is_bot'] == True]['user_id'].unique()))
+            
+            # Quick Insight List
+            st.markdown("---")
+            st.markdown("**Active Events**")
+            counts = df_display['event'].value_counts()
+            for ev, count in counts.items():
+                if ev != 'Position': # Position data is too noisy for a list
+                    st.write(f"**{ev}:** {count}")
