@@ -215,32 +215,6 @@ else:
             st.info("🎯 Select a Match ID from the sidebar to begin visualizing player telemetry.")
 
 
-        # Event Markers
-        event_markers = {'Kill': 'green', 'Killed': 'red', 'Loot': 'gold', 'KilledByStorm': 'purple'}
-        for ev, color in event_markers.items():
-            ev_df = df_display[df_display['event'] == ev]
-            if not ev_df.empty:
-                fig.add_trace(go.Scatter(
-                    x=ev_df['px_x'], y=ev_df['px_y'],
-                    mode='markers', marker=dict(color=color, size=12, symbol='x'),
-                    name=ev
-                ))
-
-        # --- FIX STRETCHING & SQUISHING ---
-        fig.update_xaxes(range=[0, 1024], visible=False, fixedrange=True)
-        fig.update_yaxes(range=[1024, 0], visible=False, fixedrange=True, scaleanchor="x", scaleratio=1) 
-        
-        fig.update_layout(
-            width=800, # Fixed width
-            height=800, # Fixed height to match width (1:1 aspect ratio)
-            margin=dict(l=10, r=10, t=10, b=10), # Tight margins
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
     with col_stats:
         st.subheader("Match Intelligence")
         if not df_display.empty:
