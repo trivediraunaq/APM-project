@@ -105,8 +105,18 @@ else:
     if os.path.exists(conf['img']):
         img = Image.open(conf['img'])
         fig.add_layout_image(
-            dict(source=img, x=0, sx=1024, y=0, sy=1024, 
-                 xref="x", yref="y", sizing="stretch", opacity=1, layer="below")
+            dict(
+                source=img,
+                x=0,        # Left edge
+                y=0,        # Top edge
+                sizex=1024, # Corrected parameter name
+                sizey=1024, # Corrected parameter name
+                xref="x",
+                yref="y",
+                sizing="stretch",
+                opacity=1,
+                layer="below"
+            )
         )
 
     # Plot Player Paths
