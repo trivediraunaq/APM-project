@@ -139,52 +139,80 @@ else:
 
     with col_map:
         # --- VISUALIZATION ---
-        fig = go.Figure()
+        # --- THE SAFETY GATE ---
+        if not df_display.empty and 'user_id' in df_display.columns:
+            fig = go.Figure()
 
-        # 1. Add Minimap Background
-        if os.path.exists(conf['img']):
-            img = Image.open(conf['img'])
-            fig.add_layout_image(
-                dict(
-                    source=img,
-                    x=0, y=0, 
-                    sizex=1024, sizey=1024, 
-                    xref="x", yref="y",
-                    sizing="stretch", 
-                    opacity=1, 
-                    layer="below"
+            # 1. Background Image
+            if os.path.exists(conf['img']):
+                img = Image.open(conf['img'])
+                fig.add_layout_image(
+                    dict(
+                        source=img,
+                        xref="x", yref="y",
+                        x=0, y=0,
+                        sizex=1024, sizey=1024,
+                        sizing="stretch",
+                        opacity=1,
+                        layer="below"
+                    )
                 )
+
+            # 2. Add Heatmap
+            if show_heatmap and not df_filtered_days.empty:
+                hx, hy = world_to_pixel(df_filtered_days['x'], df_filtered_days['z'], conf)
+                fig.add_trace(go.Histogram2dContour(
+                    x=hx, y=hy, colorscale='Hot', ncontours=20, 
+                    opacity=0.35, showscale=False
+                ))
+
+            # 3. Plot Paths
+            for user in df_display['user_id'].unique():
+                user_data = df_display[df_display['user_id'] == user]
+                is_bot = user_data['is_bot'].iloc[0]
+                fig.add_trace(go.Scatter(
+                    x=user_data['px_x'], y=user_data['px_y'],
+                    mode='lines',
+                    line=dict(width=3, dash='dot' if is_bot else 'solid'),
+                    name=f"{'Bot' if is_bot else 'Player'} {user[:5]}"
+                ))
+
+            # 4. Plot Events
+            event_markers = {'Kill': 'green', 'Killed': 'red', 'Loot': 'gold', 'KilledByStorm': 'purple'}
+            for ev, color in event_markers.items():
+                ev_df = df_display[df_display['event'] == ev]
+                if not ev_df.empty:
+                    fig.add_trace(go.Scatter(
+                        x=ev_df['px_x'], y=ev_df['px_y'],
+                        mode='markers', marker=dict(color=color, size=12, symbol='x'),
+                        name=ev
+                    ))
+
+            # --- THE MAGIC FIX FOR SHRINKING ---
+            # We force the Y-axis to follow the X-axis scale 1:1. 
+            # This prevents the "squishing" even if you zoom out.
+            fig.update_xaxes(range=[0, 1024], visible=False, fixedrange=True)
+            fig.update_yaxes(
+                range=[1024, 0], 
+                visible=False, 
+                fixedrange=True, 
+                scaleanchor="x", 
+                scaleratio=1
             )
 
-        # 2. Add Heatmap
-        if show_heatmap and not df_filtered_days.empty:
-            hx, hy = world_to_pixel(df_filtered_days['x'], df_filtered_days['z'], conf)
-            fig.add_trace(go.Histogram2dContour(
-                x=hx, y=hy, colorscale='Hot', ncontours=20, 
-                opacity=0.35, showscale=False, name="Heatmap"
-            ))
+            fig.update_layout(
+                margin=dict(l=0, r=0, t=40, b=0),
+                height=800, # This provides a stable base height
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+            )
 
+            # Use container width but Plotly will now respect the scaleanchor 
+            st.plotly_chart(fig, use_container_width=True)
 
-    if not df_display.empty and 'user_id' in df_display.columns:
-        # 3. Plot Paths & Events
-        for user in df_display['user_id'].unique():
-            user_data = df_display[df_display['user_id'] == user]
-            is_bot = user_data['is_bot'].iloc[0]
-            fig.add_trace(go.Scatter(
-                x=user_data['px_x'], y=user_data['px_y'],
-                mode='lines',
-                line=dict(width=2, dash='dot' if is_bot else 'solid'),
-                name=f"{'Bot' if is_bot else 'Player'} {user[:5]}"
-            ))
-    else:
-        # If no filters are selected, show a friendly message instead of a crash
-        st.info("Please select a Match ID from the sidebar to visualize player journeys.")
-        # Create an empty figure so the app doesn't look broken
-        fig = go.Figure()
-        fig.update_layout(
-            xaxis={'visible': False}, yaxis={'visible': False},
-            annotations=[dict(text="No Match Selected", showarrow=False, font_size=20)]
-        )
+        else:
+            st.info("🎯 Select a Match ID from the sidebar to begin visualizing player telemetry.")
 
 
         # Event Markers
