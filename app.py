@@ -139,6 +139,7 @@ else:
 
     with col_map:
         # --- VISUALIZATION ---
+        # --- FINAL STABLE VISUALIZATION ---
         fig = go.Figure()
 
         # 1. Add Minimap Background
@@ -147,11 +148,11 @@ else:
             fig.add_layout_image(
                 dict(
                     source=img,
-                    x=0, y=0, 
-                    sizex=1024, sizey=1024, 
                     xref="x", yref="y",
-                    sizing="stretch", 
-                    opacity=1, 
+                    x=0, y=0,
+                    sizex=1024, sizey=1024,
+                    sizing="stretch",
+                    opacity=1,
                     layer="below"
                 )
             )
@@ -164,18 +165,18 @@ else:
                 opacity=0.35, showscale=False, name="Heatmap"
             ))
 
-        # 3. Plot Paths & Events
+        # 3. Plot Player Paths
         for user in df_display['user_id'].unique():
             user_data = df_display[df_display['user_id'] == user]
             is_bot = user_data['is_bot'].iloc[0]
             fig.add_trace(go.Scatter(
                 x=user_data['px_x'], y=user_data['px_y'],
                 mode='lines',
-                line=dict(width=2, dash='dot' if is_bot else 'solid'),
+                line=dict(width=3, dash='dot' if is_bot else 'solid'), # Thicker lines for visibility
                 name=f"{'Bot' if is_bot else 'Player'} {user[:5]}"
             ))
 
-        # Event Markers
+        # 4. Plot Events
         event_markers = {'Kill': 'green', 'Killed': 'red', 'Loot': 'gold', 'KilledByStorm': 'purple'}
         for ev, color in event_markers.items():
             ev_df = df_display[df_display['event'] == ev]
@@ -186,51 +187,26 @@ else:
                     name=ev
                 ))
 
-        # --- FIX STRETCHING & SQUISHING ---
+        # --- THE CRITICAL FIX: AXES & LAYOUT ---
         fig.update_xaxes(range=[0, 1024], visible=False, fixedrange=True)
-        fig.update_yaxes(range=[1024, 0], visible=False, fixedrange=True, scaleanchor="x", scaleratio=1) 
+        fig.update_yaxes(range=[1024, 0], visible=False, fixedrange=True, scaleanchor="x", scaleratio=1)
+
+        fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            autosize=True, # Allow Plotly to be flexible
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+        )
+
+        # FORCING THE HEIGHT HERE IS THE KEY
+        # This prevents the "shrinking" because the container height is now strictly enforced
+        st.plotly_chart(
+            fig, 
+            use_container_width=True, 
+            theme=None, # Prevents Streamlit's theme from overriding colors
+            on_select="ignore" # Improves performance
+        )
         
-        # --- UPDATED STABLE LAYOUT ---
-    fig.update_layout(
-        autosize=True,
-        width=1000,   # Force a large base width
-        height=1000,  # Force a large base height to keep it square
-        margin=dict(l=0, r=0, t=50, b=0), # Give some top room for the legend
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        ),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-    )
-
-    # We remove the 'with col_map' and just use the full width of the app
-    # This prevents the "Match Intelligence" column from squeezing the map
-    st.plotly_chart(
-        fig, 
-        use_container_width=True, # This will make it responsive to the screen
-        config={'responsive': True}
-    )
-
-    # Move Match Intelligence BELOW the map instead of beside it
-    st.markdown("---")
-    st.subheader("Match Intelligence")
-    st_col1, st_col2, st_col3 = st.columns(3)
-    with st_col1:
-        st.metric("Events Shown", len(df_display))
-    with st_col2:
-        st.metric("Humans", len(df_display[df_display['is_bot'] == False]['user_id'].unique()))
-    with st_col3:
-        st.metric("Bots", len(df_display[df_display['is_bot'] == True]['user_id'].unique()))
-
-               
-    # Quick Insight List
-    st.markdown("---")
-    st.markdown("**Active Events**")
-    counts = df_display['event'].value_counts()
-    for ev, count in counts.items():
-        if ev != 'Position': # Position data is too noisy for a list
-            st.write(f"**{ev}:** {count}")
+        # Optional: Add a CSS hack to ensure the height stays consistent
+        st.markdown('<style>iframe { min-height: 800px; }</style>', unsafe_allow_html=True)
