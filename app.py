@@ -190,16 +190,28 @@ else:
         fig.update_xaxes(range=[0, 1024], visible=False, fixedrange=True)
         fig.update_yaxes(range=[1024, 0], visible=False, fixedrange=True, scaleanchor="x", scaleratio=1) 
         
+        # --- STABILIZED LAYOUT ---
         fig.update_layout(
-            width=800, # Fixed width
-            height=800, # Fixed height to match width (1:1 aspect ratio)
-            margin=dict(l=10, r=10, t=10, b=10), # Tight margins
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            # Remove fixed width/height here to allow the container to dictate size
+            autosize=True, 
+            margin=dict(l=0, r=0, t=0, b=0),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            ),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        # Use the full container width and tell Plotly to be responsive
+        st.plotly_chart(
+            fig, 
+            use_container_width=True, 
+            config={'responsive': True, 'displayModeBar': True}
+        )
 
     with col_stats:
         st.subheader("Match Intelligence")
