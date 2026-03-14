@@ -10,8 +10,11 @@ A high-performance internal tool built for LILA Games' Level Designers to visual
    ```bash
    git clone https://github.com/trivediraunaq/APM-project.git
    cd APM-project
-   
-2. **Install Dependencies**:
 
- ```bash
-pip install -r requirements.txt
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+
+3. **Run the Application**:
+   ```bash
+   streamlit run app.py
